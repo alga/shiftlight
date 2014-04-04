@@ -29,11 +29,14 @@
  */
 
 const int leds[] = {2, 3, 4, 5, 6};
-const int threshholds[] = {4500, 5000, 5500, 6000, 6500};
-const int num_leds = sizeof leds / sizeof *leds;
-const int WARNING_THRESHOLD = 7000;
-const int tach_pin = 12;
+const int thresholds[] = {4500, 5000, 5500, 6000, 6500};
+const unsigned num_leds = sizeof leds / sizeof *leds;
+const int WARNING_THRESHOLD = 7000;  // Start blinking here
+const int hysteresis = 200;          // rpm difference to preventing flip-flopping
+const int tach_pin = 9;
 const int led_pin = 13;
+
+boolean state[sizeof leds / sizeof *leds] = {0};
 
 unsigned long time, last_rise;
 int interval = 0;
@@ -50,7 +53,17 @@ void update_leds(const int microseconds) {
         }
 
         for (unsigned i = 0; i < num_leds; i++) {
-                digitalWrite(leds[i], threshholds[i] < rpm && blinker);
+                int threshold = thresholds[i];
+                boolean new_state = threshold < rpm && blinker;
+                boolean adjusted = new_state;
+
+                if (state[i] && !new_state) {
+                        // Hysteresis on return to prevent flip-flopping
+                        adjusted = threshold - hysteresis < rpm && blinker;
+                }
+
+                digitalWrite(leds[i], adjusted);
+                state[i] = adjusted;
         }
 }
 
